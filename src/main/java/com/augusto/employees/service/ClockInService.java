@@ -1,19 +1,24 @@
 package com.augusto.employees.service;
 
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.Set;
+import java.util.stream.Collectors;
 
-import org.apache.kafka.common.errors.ResourceNotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 
+import com.augusto.employees.exceptions.EmployeeException;
+import com.augusto.employees.exceptions.ResourceNotFoundException;
+import com.augusto.employees.model.ClockIn;
 import com.augusto.employees.model.Employees;
 import com.augusto.employees.model.EntryOrLeft;
-import com.augusto.employees.model.ClockIn;
-import com.augusto.employees.repository.EmployeesRepository;
+import com.augusto.employees.payload.ClockInDto;
 import com.augusto.employees.repository.ClockInRespository;
+import com.augusto.employees.repository.EmployeesRepository;
 
 @Service
 public class ClockInService {
@@ -23,36 +28,46 @@ public class ClockInService {
     @Autowired
     private EmployeesRepository employeesRepository;
 
-    public ClockIn registerEntry() {
+    public ClockInDto registerEntry() {
+        if(clockInRespository.findByName(EntryOrLeft.ENTRADA).isPresent()){
+            throw new EmployeeException(HttpStatus.BAD_REQUEST, "Seu ultimo registro foi uma entrada");
+        }
         var point = new ClockIn();
         point.setEmployees(getEmployee());
-        point.setTime(LocalDateTime.now());
+        point.setEntryTime(LocalDateTime.now());
         point.setName(EntryOrLeft.ENTRADA);
-        return clockInRespository.save(point);
+        clockInRespository.save(point);
+        return new ClockInDto(point);
     }
 
-    public ClockIn registerLeft() {
-        var point = new ClockIn();
+    public ClockInDto registerLeft() {
+        var point = clockInRespository.findByName(EntryOrLeft.ENTRADA)
+                .orElseThrow(() -> new EmployeeException(HttpStatus.BAD_REQUEST, "Você não registrou nenhuma entrada"));
         point.setEmployees(getEmployee());
-        point.setTime(LocalDateTime.now());
+        point.setLeftTime(LocalDateTime.now());
         point.setName(EntryOrLeft.SAIDA);
-        return clockInRespository.save(point);
+        point.setWorkedHours((int)ChronoUnit.MILLIS.between(point.getEntryTime(), point.getLeftTime()));
+        clockInRespository.save(point);
+        return new ClockInDto(point);
     }
 
-    public ClockIn editRegister(Long id, LocalDateTime time) {
+    public ClockInDto editEntryTime(Long id, LocalDateTime time) {
         var point = clockInRespository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Registro de ponto não encontrado"));
-        point.setTime(time);
-       return clockInRespository.save(point);
+                .orElseThrow(() -> new ResourceNotFoundException("Clock in", "id", id));
+        point.setEntryTime(time);
+        clockInRespository.save(point);
+        return new ClockInDto(point);
     }
 
-    public Set<ClockIn> getRegistry(Long id){
-        var employee = findEmployee(id);
-        return clockInRespository.findByEmployees(employee);
+    public Set<ClockInDto> getRegistry(String uniqueCode) {
+        var employee = employeeByUniqueCode(uniqueCode);
+        var clockInDto = employee.getPoints().stream().map(x -> new ClockInDto(x)).collect(Collectors.toSet());
+        return clockInDto;
     }
 
-    private Employees findEmployee(Long id){
-        var employee = employeesRepository.findById(id).orElseThrow(()-> new ResourceNotFoundException("Funcionário não encontrado"));
+    private Employees employeeByUniqueCode(String uniqueCode) {
+        var employee = employeesRepository.findByUniqueCode(uniqueCode)
+                .orElseThrow(() -> new ResourceNotFoundException("Employee", "Unique Code", uniqueCode));
         return employee;
     }
 
@@ -61,5 +76,12 @@ public class ClockInService {
         var name = ((UserDetails) principal).getUsername();
         var employee = employeesRepository.findByCpfOrEmail(name, name);
         return employee.get();
+    }
+
+    public int totalWorkedHours(String uniqueCode) {
+        var employee = employeeByUniqueCode(uniqueCode);
+        var clockIns = employee.getPoints();
+        var totalHours = clockIns.stream().map(x-> x.getWorkedHours()).reduce(0,Integer::sum);
+        return totalHours;
     }
 }

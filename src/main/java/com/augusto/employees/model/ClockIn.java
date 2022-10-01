@@ -31,5 +31,7 @@ public class ClockIn {
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "employee_id")
     private Employees employees;
-    private LocalDateTime time;
+    private LocalDateTime entryTime;
+    private LocalDateTime leftTime;
+    private int workedHours;
 }

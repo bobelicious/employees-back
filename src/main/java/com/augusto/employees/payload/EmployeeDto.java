@@ -54,7 +54,8 @@ public class EmployeeDto {
 
     @NotEmpty(message= " O campo cargo não pode ser nulo")
     private Set<Role> roles;
-
+    @JsonProperty( value = "uniqueCode", access = JsonProperty.Access.READ_ONLY)
+    private String uniqueCode;
     private Photo photo;
 
 }

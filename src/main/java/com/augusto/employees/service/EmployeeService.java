@@ -4,9 +4,8 @@ import java.io.IOException;
 import java.time.LocalDate;
 import java.time.Period;
 import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Collectors;
-
-import javax.servlet.http.HttpServletResponse;
 
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -33,7 +32,7 @@ import com.augusto.employees.repository.RoleRepository;
 public class EmployeeService {
     @Autowired
     private PhotoRepository photoRepository;
-    
+
     @Autowired
     private PasswordEncoder encoder;
 
@@ -46,26 +45,31 @@ public class EmployeeService {
     @Autowired
     private EmployeesRepository employeesRepository;
 
-    @Autowired
-    private ClockInService clockInService;
-
     public EmployeeDto createEmployee(EmployeeDto employeeDto, MultipartFile file) throws IOException {
         var newEmployee = toEmployees(employeeDto);
         newEmployee.setAge(findAge(newEmployee.getBirthDate()));
         verifyEmailAndCpf(newEmployee.getEmail(), newEmployee.getCpf());
         newEmployee.setPassword(encoder.encode(newEmployee.getPassword()));
         newEmployee.setRoles(setRole(employeeDto.getRoles()));
+        newEmployee.setUniqueCode(generateUc());
         var newEmployeeDto = toEmployeeDto(employeesRepository.save(newEmployee));
-        createPhoto(file, newEmployee);
+        if (file != null) {
+            createPhoto(file, newEmployee);
+        }
         return newEmployeeDto;
     }
 
+    private String generateUc() {
+        return UUID.randomUUID().toString();
+    }
+
     private Set<Role> setRole(Set<Role> roles) {
-        Set<Role> newRoles = roles.stream().map(x-> roleRepository.findByName(x.getName()).get()).collect(Collectors.toSet());
+        Set<Role> newRoles = roles.stream().map(x -> roleRepository.findByName(x.getName()).get())
+                .collect(Collectors.toSet());
         return newRoles;
     }
 
-    private void createPhoto(MultipartFile file, Employees employee) throws IOException{
+    private void createPhoto(MultipartFile file, Employees employee) throws IOException {
         var photo = new Photo();
         photo.setData(file.getBytes());
         photo.setType(file.getContentType());
@@ -157,7 +161,7 @@ public class EmployeeService {
         return employeeDto;
     }
 
-    public EmployeeDto my_page(){
+    public EmployeeDto my_page() {
         var employee = getEmployee();
         return toEmployeeDto(employee);
     }
@@ -167,5 +171,11 @@ public class EmployeeService {
         var name = ((UserDetails) principal).getUsername();
         var employee = employeesRepository.findByCpfOrEmail(name, name);
         return employee.get();
+    }
+
+    public EmployeeDto getByUniqueCode(String uniqueCode) {
+        var employee = employeesRepository.findByUniqueCode(uniqueCode)
+                .orElseThrow(() -> new ResourceNotFoundException("Employee", "unique code", uniqueCode));
+        return toEmployeeDto(employee);
     }
 }
