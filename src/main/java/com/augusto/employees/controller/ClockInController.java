@@ -43,4 +43,9 @@ public class ClockInController {
     public ResponseEntity<Set<ClockInDto>> myClockIns(@PathVariable String uniqueCode){
         return ResponseEntity.ok().body(clockInService.getRegistry(uniqueCode));
     }
+
+    @GetMapping("/worked_hours/{uniqueCode}")
+    public ResponseEntity<?> workedHours(@PathVariable String uniqueCode){
+        return ResponseEntity.ok(clockInService.totalWorkedHours(uniqueCode));
+    }
 }

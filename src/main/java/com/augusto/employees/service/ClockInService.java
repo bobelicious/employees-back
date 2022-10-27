@@ -2,6 +2,7 @@ package com.augusto.employees.service;
 
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -36,6 +37,8 @@ public class ClockInService {
         point.setEmployees(getEmployee());
         point.setEntryTime(LocalDateTime.now());
         point.setName(EntryOrLeft.ENTRADA);
+        point.setLeftTime(point.getEntryTime());
+        point.setWorkedHours(0.0);
         clockInRespository.save(point);
         return new ClockInDto(point);
     }
@@ -46,9 +49,16 @@ public class ClockInService {
         point.setEmployees(getEmployee());
         point.setLeftTime(LocalDateTime.now());
         point.setName(EntryOrLeft.SAIDA);
-        point.setWorkedHours((int)ChronoUnit.MILLIS.between(point.getEntryTime(), point.getLeftTime()));
+        var secondsWorked = (double)ChronoUnit.SECONDS.between(point.getEntryTime(), point.getLeftTime());
+        System.out.println(secondsWorked);
+        point.setWorkedHours(convertTohours(secondsWorked));
         clockInRespository.save(point);
         return new ClockInDto(point);
+    }
+
+    private Double convertTohours(Double secondsWorked){
+        var workedHours = secondsWorked / 3600;
+        return workedHours;
     }
 
     public ClockInDto editEntryTime(Long id, LocalDateTime time) {
@@ -78,10 +88,10 @@ public class ClockInService {
         return employee.get();
     }
 
-    public int totalWorkedHours(String uniqueCode) {
+    public Optional<Double> totalWorkedHours(String uniqueCode) {
         var employee = employeeByUniqueCode(uniqueCode);
         var clockIns = employee.getPoints();
-        var totalHours = clockIns.stream().map(x-> x.getWorkedHours()).reduce(0,Integer::sum);
+        var totalHours = clockIns.stream().map(x-> x.getWorkedHours()).reduce(Double::sum);
         return totalHours;
     }
 }

@@ -13,6 +13,8 @@ import javax.persistence.JoinColumn;
 import javax.persistence.ManyToOne;
 import javax.persistence.Table;
 
+import com.fasterxml.jackson.annotation.JsonBackReference;
+
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -30,8 +32,9 @@ public class ClockIn {
     private EntryOrLeft name;
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "employee_id")
+    @JsonBackReference
     private Employees employees;
     private LocalDateTime entryTime;
     private LocalDateTime leftTime;
-    private int workedHours;
+    private Double workedHours;
 }

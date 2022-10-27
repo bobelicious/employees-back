@@ -7,6 +7,8 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import javax.transaction.Transactional;
+
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -29,6 +31,7 @@ import com.augusto.employees.repository.PhotoRepository;
 import com.augusto.employees.repository.RoleRepository;
 
 @Service
+@Transactional
 public class EmployeeService {
     @Autowired
     private PhotoRepository photoRepository;
@@ -109,8 +112,8 @@ public class EmployeeService {
     public EmployeeDto findByCpf(String cpf) {
         var employee = employeesRepository.findByCpf(cpf)
                 .orElseThrow(() -> new ResourceNotFoundException("Employee", "CPF", cpf));
-        var employeeDto = toEmployeeDto(employee);
-        return employeeDto;
+
+        return toEmployeeDto(employee);
     }
 
     public EmployeeDto findByEmail(String email) {
@@ -119,27 +122,24 @@ public class EmployeeService {
         return toEmployeeDto(employee);
     }
 
-    public EmployeeDto putEmployee(Long id, EmployeeDto employeeDto) {
+    public EmployeeDto putEmployee(EmployeeDto employeeDto) {
 
-        var newEmployee = employeesRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Employee", "id", id));
-
-        newEmployee = new Employees(employeeDto);
-        newEmployee.setAge(findAge(newEmployee.getBirthDate()));
-
-        verifyUpdateEmailAndCpf(newEmployee.getEmail(), newEmployee.getCpf(), id);
-
-        newEmployee.setPassword(encoder.encode(newEmployee.getPassword()));
-
-        var newEmployeeDto = toEmployeeDto(employeesRepository.save(newEmployee));
+        var employee = getEmployee();
+        employee.setEmail(employeeDto.getEmail());
+        verifyUpdateEmail(employee.getEmail());
+        employee.setPassword(
+                employeeDto.getCpf() == null ? employee.getCpf() : encoder.encode(employeeDto.getPassword()));
+        employee.setOccupation(
+                employeeDto.getOccupation() == null ? employee.getOccupation() : employeeDto.getOccupation());
+        var newEmployeeDto = toEmployeeDto(employeesRepository.save(employee));
 
         return newEmployeeDto;
     }
 
-    private void verifyUpdateEmailAndCpf(String email, String cpf, Long id) {
-        var employee = employeesRepository.findByCpfContainingIgnoreCaseOrEmailContainingIgnoreCase(cpf, email);
-        if (!employee.get().getId().equals(id)) {
-            throw new EmployeeException(HttpStatus.BAD_REQUEST, "O email ou cpf inserido já existe");
+    private void verifyUpdateEmail(String email) {
+        var employee = employeesRepository.findByEmail(email);
+        if (employee.isPresent()) {
+            throw new EmployeeException(HttpStatus.BAD_REQUEST, "O email já existe");
         }
     }
 
@@ -162,8 +162,7 @@ public class EmployeeService {
     }
 
     public EmployeeDto my_page() {
-        var employee = getEmployee();
-        return toEmployeeDto(employee);
+        return toEmployeeDto(getEmployee());
     }
 
     public Employees getEmployee() {
@@ -177,5 +176,11 @@ public class EmployeeService {
         var employee = employeesRepository.findByUniqueCode(uniqueCode)
                 .orElseThrow(() -> new ResourceNotFoundException("Employee", "unique code", uniqueCode));
         return toEmployeeDto(employee);
+    }
+
+    public Photo getPhoto(Long id) {
+        var employee = employeesRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Photo", "id", id));
+        return employee.getPhoto() == null ? null : employee.getPhoto();
     }
 }

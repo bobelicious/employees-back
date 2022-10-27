@@ -8,9 +8,9 @@ import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.FetchType;
 import javax.persistence.GeneratedValue;
-import javax.persistence.JoinColumn;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
+import javax.persistence.JoinColumn;
 import javax.persistence.JoinTable;
 import javax.persistence.ManyToMany;
 import javax.persistence.OneToMany;
@@ -19,8 +19,7 @@ import javax.persistence.Table;
 import javax.persistence.UniqueConstraint;
 
 import com.augusto.employees.payload.EmployeeDto;
-import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.annotation.JsonManagedReference;
+import com.fasterxml.jackson.annotation.JsonBackReference;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -42,8 +41,6 @@ public class Employees {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     @OneToOne(mappedBy = "employees", cascade = CascadeType.ALL)
-    @JsonIgnore
-    @JsonManagedReference
     private Photo photo;
     private String name;
     private int age;
@@ -51,7 +48,6 @@ public class Employees {
     private LocalDate birthDate;
     private String cpf;
     @OneToMany(mappedBy = "employees")
-    @JsonManagedReference
     private Set<ClockIn> points;
     @Column(name = "unique_code")
     private String uniqueCode;
@@ -60,7 +56,7 @@ public class Employees {
 
     @ManyToMany(fetch = FetchType.EAGER, cascade = CascadeType.ALL)
     @JoinTable(name = "employee_roles", joinColumns = @JoinColumn(name = "employee_id", referencedColumnName = "id"), inverseJoinColumns = @JoinColumn(name = "role_id", referencedColumnName = "id"))
-    @JsonManagedReference
+    @JsonBackReference
     private Set<Role> roles;
 
     public Employees(EmployeeDto employeeDto) {

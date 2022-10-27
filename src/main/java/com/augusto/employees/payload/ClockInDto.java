@@ -18,7 +18,7 @@ public class ClockInDto {
     private String employees;
     private LocalDateTime entryTime;
     private LocalDateTime leftTime;
-    private int workedHours;
+    private Double workedHours;
 
     public ClockInDto(ClockIn clockIn) {
         this.id = clockIn.getId();
